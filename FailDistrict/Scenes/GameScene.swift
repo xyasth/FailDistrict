@@ -1,112 +1,112 @@
-//
-//  GameScene.swift
-//  FailDistrict
-//
-//  Created by Prayogo kosasih. W on 08/05/26.
-//
-
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
-    var entities = [GKEntity]()
-    var graphs = [String : GKGraph]()
+    var playerEntity: PlayerEntity!
+    var groundEntities: [GroundEntity] = []
     
-    private var lastUpdateTime : TimeInterval = 0
-    private var label : SKLabelNode?
-    private var spinnyNode : SKShapeNode?
+    var cameraNode: SKCameraNode!
+    var cameraController: CameraController!
+    var mapVisual: SKSpriteNode!
     
-    override func sceneDidLoad() {
+    lazy var controlSystem: GKComponentSystem<PlayerControlComponent> = {
+        return GKComponentSystem(componentClass: PlayerControlComponent.self)
+    }()
+    
+    var lastUpdateTime: TimeInterval = 0
+    
+    override func didMove(to view: SKView) {
+        physicsWorld.contactDelegate = self
+        physicsWorld.gravity = CGVector(dx: 0, dy: -12.0)
+        backgroundColor = .white // Luar map warnanya hitam
         
-        self.lastUpdateTime = 0
+        // Urutan ini sangat penting agar tidak crash
+        setupLevel()
+        setupPlayer()
+        setupCamera()
+    }
+    
+    private func setupLevel() {
+        // Pastikan nama file gambar kamu di Assets adalah "bg"
+        mapVisual = SKSpriteNode(imageNamed: "bg")
+        mapVisual.anchorPoint = CGPoint(x: 0, y: 0) // Pojok kiri bawah jadi titik 0,0
+        mapVisual.position = CGPoint(x: 0, y: 0)
+        mapVisual.zPosition = -10
+        addChild(mapVisual)
         
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
+        // Pijakan utama yang menutupi gambar lantai di background
+        let mainGround = GroundEntity(size: CGSize(width: mapVisual.size.width, height: 50), position: CGPoint(x: mapVisual.size.width / 2, y: 100))
+        mainGround.spriteNode.zPosition = -5
+        groundEntities.append(mainGround)
+        addChild(mainGround.spriteNode)
+    }
+    
+    private func setupPlayer() {
+        playerEntity = PlayerEntity(position: CGPoint(x: 100, y: 150))
+        addChild(playerEntity.spriteNode)
+        controlSystem.addComponent(foundIn: playerEntity)
+    }
+    
+    private func setupCamera() {
+        cameraNode = SKCameraNode()
         
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
+        // --- Setting Zoom Out ---
+        cameraNode.setScale(1)
         
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 2.5
-            
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
-        }
-    }
-    
-    
-    func touchDown(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.green
-            self.addChild(n)
-        }
-    }
-    
-    func touchMoved(toPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.blue
-            self.addChild(n)
-        }
-    }
-    
-    func touchUp(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.red
-            self.addChild(n)
-        }
-    }
-    
-    override func mouseDown(with event: NSEvent) {
-        self.touchDown(atPoint: event.location(in: self))
-    }
-    
-    override func mouseDragged(with event: NSEvent) {
-        self.touchMoved(toPoint: event.location(in: self))
-    }
-    
-    override func mouseUp(with event: NSEvent) {
-        self.touchUp(atPoint: event.location(in: self))
+        addChild(cameraNode)
+        self.camera = cameraNode
+        
+        cameraController = CameraController(
+            cameraNode: cameraNode,
+            targetNode: playerEntity.spriteNode,
+            viewSize: self.size,
+            mapSize: mapVisual.size
+        )
+        
+        cameraNode.position.x = playerEntity.spriteNode.position.x
+        cameraNode.position.y = self.size.height / 2
     }
     
     override func keyDown(with event: NSEvent) {
-        switch event.keyCode {
-        case 0x31:
-            if let label = self.label {
-                label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-            }
-        default:
-            print("keyDown: \(event.characters!) keyCode: \(event.keyCode)")
+        if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
+            control.handleKeyDown(event.keyCode)
         }
     }
     
+    override func keyUp(with event: NSEvent) {
+        if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
+            control.handleKeyUp(event.keyCode)
+        }
+    }
     
     override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
+        if lastUpdateTime == 0 { lastUpdateTime = currentTime }
+        let dt = currentTime - lastUpdateTime
+        lastUpdateTime = currentTime
         
-        // Initialize _lastUpdateTime if it has not already been
-        if (self.lastUpdateTime == 0) {
-            self.lastUpdateTime = currentTime
+        checkPlayerGroundedState()
+        controlSystem.update(deltaTime: dt)
+        
+        // Kamera diperbarui paling akhir
+        cameraController.update()
+    }
+    
+    private func checkPlayerGroundedState() {
+        guard let body = playerEntity.spriteNode.physicsBody else { return }
+        
+        if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
+            for contactedBody in body.allContactedBodies() {
+                if contactedBody.categoryBitMask == PhysicsCategory.ground {
+                    if let groundNode = contactedBody.node {
+                        // Toleransi injak 80% dari tengah kotak
+                        if playerEntity.spriteNode.position.y > groundNode.position.y + (groundNode.frame.height / 2) * 0.8 {
+                            control.isGrounded = true
+                            break
+                        }
+                    }
+                }
+            }
         }
-        
-        // Calculate time since last update
-        let dt = currentTime - self.lastUpdateTime
-        
-        // Update entities
-        for entity in self.entities {
-            entity.update(deltaTime: dt)
-        }
-        
-        self.lastUpdateTime = currentTime
     }
 }

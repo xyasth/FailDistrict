@@ -16,6 +16,8 @@ class PlayerEntity: GKEntity {
         spriteNode = SKSpriteNode(imageNamed: "player_idle")
         spriteNode.size = CGSize(width: 100, height: 100)
         
+        spriteNode.zPosition = 10
+        
 //        spriteNode = SKSpriteNode(color: .cyan, size: CGSize(width: 60, height: 60))
         spriteNode.position = position
         

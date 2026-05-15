@@ -5,7 +5,7 @@ class PlayerControlComponent: GKComponent {
     let node: SKSpriteNode
     
     // Setingan Movement
-    let moveSpeed: CGFloat = 350.0
+    let moveSpeed: CGFloat = 450.0
     let jumpVelocity: CGFloat = 850.0
     
     // Status Input

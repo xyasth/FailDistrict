@@ -13,7 +13,10 @@ class PlayerEntity: GKEntity {
     
     init(position: CGPoint) {
         // Pembuatan Visual Player
-        spriteNode = SKSpriteNode(color: .cyan, size: CGSize(width: 60, height: 60))
+        spriteNode = SKSpriteNode(imageNamed: "player_idle")
+        spriteNode.size = CGSize(width: 100, height: 100)
+        
+//        spriteNode = SKSpriteNode(color: .cyan, size: CGSize(width: 60, height: 60))
         spriteNode.position = position
         
         // Setingan Physics
@@ -23,7 +26,7 @@ class PlayerEntity: GKEntity {
         spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.ground // Bisa nabrak tanah
         spriteNode.physicsBody?.contactTestBitMask = PhysicsCategory.ground // Melapor kalau nyentuh tanah
         spriteNode.physicsBody?.restitution = 0.0 // Tidak memantul
-        spriteNode.physicsBody?.friction = 0.0 // Tidak ada gesekan
+        spriteNode.physicsBody?.friction = 0.0 // Tidak ada gesekand
         
         super.init()
         

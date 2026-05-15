@@ -8,7 +8,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var cameraNode: SKCameraNode!
     var cameraController: CameraController!
-    var mapVisual: SKSpriteNode!
+    
+    // Referensi untuk mendapatkan ukuran batas kamera
+    var mapSize: CGSize = CGSize(width: 1280, height: 800)
     
     lazy var controlSystem: GKComponentSystem<PlayerControlComponent> = {
         return GKComponentSystem(componentClass: PlayerControlComponent.self)
@@ -18,32 +20,45 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func didMove(to view: SKView) {
         physicsWorld.contactDelegate = self
-        physicsWorld.gravity = CGVector(dx: 0, dy: -12.0)
-        backgroundColor = .white // Luar map warnanya hitam
+        physicsWorld.gravity = CGVector(dx: 0, dy: -15.0)
+        backgroundColor = .black
         
-        // Urutan ini sangat penting agar tidak crash
-        setupLevel()
+        parseLevelFromSKS()
         setupPlayer()
         setupCamera()
     }
     
-    private func setupLevel() {
-        // Pastikan nama file gambar kamu di Assets adalah "bg"
-        mapVisual = SKSpriteNode(imageNamed: "bg")
-        mapVisual.anchorPoint = CGPoint(x: 0, y: 0) // Pojok kiri bawah jadi titik 0,0
-        mapVisual.position = CGPoint(x: 0, y: 0)
-        mapVisual.zPosition = -10
-        addChild(mapVisual)
+    private func parseLevelFromSKS() {
+        if let bgNode = self.childNode(withName: "//mapBackground") as? SKSpriteNode {
+            self.mapSize = bgNode.size
+        }
         
-        // Pijakan utama yang menutupi gambar lantai di background
-        let mainGround = GroundEntity(size: CGSize(width: mapVisual.size.width, height: 50), position: CGPoint(x: mapVisual.size.width / 2, y: 100))
-        mainGround.spriteNode.zPosition = -5
-        groundEntities.append(mainGround)
-        addChild(mainGround.spriteNode)
+        for node in self.children {
+            if node.name == "ground_placeholder", let spriteNode = node as? SKSpriteNode {
+                
+                let size = spriteNode.size
+                let position = spriteNode.position
+                
+                let formalGround = GroundEntity(size: size, position: position)
+                formalGround.spriteNode.zPosition = -5
+                
+                groundEntities.append(formalGround)
+                addChild(formalGround.spriteNode)
+                
+                spriteNode.removeFromParent()
+            }
+        }
     }
     
     private func setupPlayer() {
-        playerEntity = PlayerEntity(position: CGPoint(x: 100, y: 150))
+        var startPosition = CGPoint(x: 100, y: 150)
+        
+        if let spawnNode = self.childNode(withName: "//player_spawn") {
+            startPosition = spawnNode.position
+            spawnNode.removeFromParent()
+        }
+        
+        playerEntity = PlayerEntity(position: startPosition)
         addChild(playerEntity.spriteNode)
         controlSystem.addComponent(foundIn: playerEntity)
     }
@@ -51,8 +66,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private func setupCamera() {
         cameraNode = SKCameraNode()
         
-        // --- Setting Zoom Out ---
-        cameraNode.setScale(1)
+        cameraNode.setScale(1.0)
         
         addChild(cameraNode)
         self.camera = cameraNode
@@ -61,7 +75,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             cameraNode: cameraNode,
             targetNode: playerEntity.spriteNode,
             viewSize: self.size,
-            mapSize: mapVisual.size
+            mapSize: self.mapSize
         )
         
         cameraNode.position.x = playerEntity.spriteNode.position.x
@@ -88,9 +102,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         checkPlayerGroundedState()
         controlSystem.update(deltaTime: dt)
         
-        // Kamera diperbarui paling akhir
-        cameraController.update()
+//        cameraController.update()
     }
+    
+    override func didSimulatePhysics() {
+            cameraController?.update()
+        }
     
     private func checkPlayerGroundedState() {
         guard let body = playerEntity.spriteNode.physicsBody else { return }
@@ -99,7 +116,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             for contactedBody in body.allContactedBodies() {
                 if contactedBody.categoryBitMask == PhysicsCategory.ground {
                     if let groundNode = contactedBody.node {
-                        // Toleransi injak 80% dari tengah kotak
                         if playerEntity.spriteNode.position.y > groundNode.position.y + (groundNode.frame.height / 2) * 0.8 {
                             control.isGrounded = true
                             break

@@ -9,20 +9,18 @@ class ViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Buat panggung dengan ukuran standar Mac
-        let scene = GameScene(size: CGSize(width: 1024, height: 768))
-        scene.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        scene.scaleMode = .aspectFill
-        
-        if let view = self.skView {
-            view.presentScene(scene)
+        if let scene = GameScene(fileNamed: "GameScene") {
             
-            view.ignoresSiblingOrder = true
-            view.showsFPS = true
-            view.showsNodeCount = true
+            scene.scaleMode = .aspectFill
             
-            // X-Ray fisik dinyalakan agar mempermudah kamu mendesain level
-            view.showsPhysics = true
+            if let view = self.skView {
+                view.presentScene(scene)
+                
+                view.ignoresSiblingOrder = true
+                view.showsFPS = true
+                view.showsNodeCount = true
+                view.showsPhysics = true
+            }
         }
     }
 }

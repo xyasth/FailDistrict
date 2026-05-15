@@ -12,11 +12,11 @@ class PlayerEntity: GKEntity {
     var spriteNode: SKSpriteNode
     
     init(position: CGPoint) {
-        // 1. Pembuatan Wujud Visual
-        spriteNode = SKSpriteNode(color: .cyan, size: CGSize(width: 40, height: 40))
+        // Pembuatan Visual Player
+        spriteNode = SKSpriteNode(color: .cyan, size: CGSize(width: 60, height: 60))
         spriteNode.position = position
         
-        // 2. Setingan Fisika (Tubuh)
+        // Setingan Physics
         spriteNode.physicsBody = SKPhysicsBody(circleOfRadius: spriteNode.size.width / 2)
         spriteNode.physicsBody?.allowsRotation = false
         spriteNode.physicsBody?.categoryBitMask = PhysicsCategory.player
@@ -27,7 +27,6 @@ class PlayerEntity: GKEntity {
         
         super.init()
         
-        // 3. Penanaman Otak (Komponen)
         let controlComponent = PlayerControlComponent(node: spriteNode)
         addComponent(controlComponent)
     }

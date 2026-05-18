@@ -40,7 +40,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 let position = spriteNode.position
                 
                 let formalGround = GroundEntity(size: size, position: position)
-                formalGround.spriteNode.zPosition = -5
+                formalGround.spriteNode.zPosition = spriteNode.zPosition
                 
                 groundEntities.append(formalGround)
                 addChild(formalGround.spriteNode)

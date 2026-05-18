@@ -2,12 +2,11 @@ import SpriteKit
 import GameplayKit
 
 class PlayerControlComponent: GKComponent {
-    // Wujud fisik yang akan dikendalikan oleh otak ini
     let node: SKSpriteNode
     
-    // Setingan Movement (Rage-bait style: Responsif & Cepat)
-    let moveSpeed: CGFloat = 350.0
-    let jumpVelocity: CGFloat = 650.0
+    // Setingan Movement
+    let moveSpeed: CGFloat = 450.0
+    let jumpVelocity: CGFloat = 850.0
     
     // Status Input
     var isMovingLeft = false
@@ -54,9 +53,9 @@ class PlayerControlComponent: GKComponent {
         }
     }
     
-    // Dipanggil 60 kali per detik oleh Mandor di GameScene
+    // Dipanggil 60 kali per detik
     override func update(deltaTime seconds: TimeInterval) {
-        // 1. Update Timer Coyote & Buffer
+        // Update Timer Coyote & Buffer
         if isGrounded {
             currentCoyoteTime = coyoteTime
         } else {
@@ -65,19 +64,23 @@ class PlayerControlComponent: GKComponent {
         
         currentJumpBuffer -= seconds
         
-        // 2. Kalkulasi Kecepatan Horizontal (Direct Velocity)
-        var targetVelocityX: CGFloat = 0
-        if isMovingLeft { targetVelocityX = -moveSpeed }
-        if isMovingRight { targetVelocityX = moveSpeed }
+        //        var targetVelocityX: CGFloat = 0
+        //        if isMovingLeft { targetVelocityX = -moveSpeed }
+        //        if isMovingRight { targetVelocityX = moveSpeed }
+        
+        var directionModifier: CGFloat = 0
+        if isMovingLeft { directionModifier -= 1 }
+        if isMovingRight { directionModifier += 1 }
+        
+        let targetVelocityX = moveSpeed * directionModifier
         
         node.physicsBody?.velocity.dx = targetVelocityX
         
-        // 3. Eksekusi Loncat
+        // Eksekusi Jump
         if currentJumpBuffer > 0 && currentCoyoteTime > 0 {
             executeJump()
         }
         
-        // Selalu reset grounded. Nanti dicek ulang oleh sensor tabrakan di GameScene.
         isGrounded = false
     }
     

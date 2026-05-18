@@ -12,22 +12,26 @@ class PlayerEntity: GKEntity {
     var spriteNode: SKSpriteNode
     
     init(position: CGPoint) {
-        // 1. Pembuatan Wujud Visual
-        spriteNode = SKSpriteNode(color: .cyan, size: CGSize(width: 40, height: 40))
+        // Pembuatan Visual Player
+        spriteNode = SKSpriteNode(imageNamed: "player_idle")
+        spriteNode.size = CGSize(width: 100, height: 100)
+        
+        spriteNode.zPosition = 10
+        
+//        spriteNode = SKSpriteNode(color: .cyan, size: CGSize(width: 60, height: 60))
         spriteNode.position = position
         
-        // 2. Setingan Fisika (Tubuh)
+        // Setingan Physics
         spriteNode.physicsBody = SKPhysicsBody(circleOfRadius: spriteNode.size.width / 2)
         spriteNode.physicsBody?.allowsRotation = false
         spriteNode.physicsBody?.categoryBitMask = PhysicsCategory.player
-        spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.ground // Bisa nabrak tanah
-        spriteNode.physicsBody?.contactTestBitMask = PhysicsCategory.ground // Melapor kalau nyentuh tanah
+        spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.ground | PhysicsCategory.tree | PhysicsCategory.fruit // Bisa nabrak tanah, pohon, buah
+        spriteNode.physicsBody?.contactTestBitMask = PhysicsCategory.ground | PhysicsCategory.treeTrigger | PhysicsCategory.tree | PhysicsCategory.fruitTrigger | PhysicsCategory.fruit // Melapor sentuhan penting
         spriteNode.physicsBody?.restitution = 0.0 // Tidak memantul
-        spriteNode.physicsBody?.friction = 0.0 // Tidak ada gesekan
+        spriteNode.physicsBody?.friction = 0.0 // Tidak ada gesekand
         
         super.init()
         
-        // 3. Penanaman Otak (Komponen)
         let controlComponent = PlayerControlComponent(node: spriteNode)
         addComponent(controlComponent)
     }

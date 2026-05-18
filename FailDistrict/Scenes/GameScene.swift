@@ -225,13 +225,29 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Rotasi pivot (bukan sprite) supaya pangkal pohon jadi titik putar.
         let fallLeft = SKAction.rotate(toAngle: (.pi / 2), duration: 0.45, shortestUnitArc: true)
         fallLeft.timingMode = .easeIn
-        treePivotNode.run(fallLeft)
+
+        let becomePassive = SKAction.run { [weak self] in
+            self?.makeTreePassive()
+        }
+
+        treePivotNode.run(SKAction.sequence([fallLeft, becomePassive]))
         
         // Hapus trigger supaya tidak pernah aktif lagi
         treeTriggerNode?.removeFromParent()
         treeTriggerNode = nil
     }
     
+    private func makeTreePassive() {
+        guard let treeBody = treeNode?.physicsBody else { return }
+
+        // Setelah tumbang, pohon jadi pasif: tidak membunuh dan tidak menghalangi player.
+        treeBody.categoryBitMask = PhysicsCategory.none
+        treeBody.collisionBitMask = PhysicsCategory.none
+        treeBody.contactTestBitMask = PhysicsCategory.none
+        treeBody.isDynamic = false
+        treeBody.affectedByGravity = false
+    }
+
     private func killPlayer() {
         guard !isPlayerDead else { return }
         isPlayerDead = true

@@ -2,8 +2,13 @@ import SpriteKit
 import GameplayKit
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
+    enum GameState {
+        case playing
+        case dead
+    }
     
     var playerEntity: PlayerEntity!
+    private var playerControl: PlayerControlComponent?
     var groundEntities: [GroundEntity] = []
     
     var cameraNode: SKCameraNode!
@@ -18,12 +23,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var lastUpdateTime: TimeInterval = 0
     
-    // ECS obstacles
-    private var treeObstacleEntity: TreeObstacleEntity?
-    private var fruitDropEntity: FruitDropEntity?
+    // ECS obstacles (multi instance)
+    private var treeObstacleEntities: [TreeObstacleEntity] = []
+    private var fruitDropEntities: [FruitDropEntity] = []
     
-    // Guard state supaya player mati hanya sekali
-    private var isPlayerDead = false
+    // State game sederhana
+    private var gameState: GameState = .playing
     
     override func didMove(to view: SKView) {
         physicsWorld.contactDelegate = self
@@ -32,8 +37,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         parseLevelFromSKS()
         setupPlayer()
-        setupTreeObstacleEntity()
-        setupFruitDropEntity()
+        setupTreeObstacleEntities()
+        setupFruitDropEntities()
         setupCamera()
     }
     
@@ -69,27 +74,59 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         playerEntity = PlayerEntity(position: startPosition)
         addChild(playerEntity.spriteNode)
         controlSystem.addComponent(foundIn: playerEntity)
+        playerControl = playerEntity.component(ofType: PlayerControlComponent.self)
     }
     
-    private func setupTreeObstacleEntity() {
-        guard let treeNode = childNode(withName: "//tree") as? SKSpriteNode else { return }
-        let triggerNode = childNode(withName: "//treeTrigger") as? SKSpriteNode
+    private func setupTreeObstacleEntities() {
+        treeObstacleEntities.removeAll()
         
-        treeObstacleEntity = TreeObstacleEntity(
-            scene: self,
-            treeNode: treeNode,
-            triggerNode: triggerNode
-        )
+        // Multi naming: tree_1 + tree_1_trigger, tree_2 + tree_2_trigger, ...
+        let indexedTrees = children.compactMap { node -> SKSpriteNode? in
+            guard let sprite = node as? SKSpriteNode, let name = sprite.name else { return nil }
+            guard name.hasPrefix("tree_"), !name.hasSuffix("_trigger") else { return nil }
+            return sprite
+        }
+        
+        for treeNode in indexedTrees {
+            let triggerName = "\(treeNode.name ?? "")_trigger"
+            let triggerNode = childNode(withName: "//\(triggerName)") as? SKSpriteNode
+            let entity = TreeObstacleEntity(scene: self, treeNode: treeNode, triggerNode: triggerNode)
+            treeObstacleEntities.append(entity)
+        }
+        
+        // Legacy fallback: single tree + treeTrigger
+        if treeObstacleEntities.isEmpty,
+           let treeNode = childNode(withName: "//tree") as? SKSpriteNode {
+            let triggerNode = childNode(withName: "//treeTrigger") as? SKSpriteNode
+            let entity = TreeObstacleEntity(scene: self, treeNode: treeNode, triggerNode: triggerNode)
+            treeObstacleEntities.append(entity)
+        }
     }
     
-    private func setupFruitDropEntity() {
-        guard let fruitNode = childNode(withName: "//fruit") as? SKSpriteNode else { return }
-        let triggerNode = childNode(withName: "//fruitTrigger") as? SKSpriteNode
+    private func setupFruitDropEntities() {
+        fruitDropEntities.removeAll()
         
-        fruitDropEntity = FruitDropEntity(
-            fruitNode: fruitNode,
-            triggerNode: triggerNode
-        )
+        // Multi naming: fruit_1 + fruit_1_trigger, fruit_2 + fruit_2_trigger, ...
+        let indexedFruits = children.compactMap { node -> SKSpriteNode? in
+            guard let sprite = node as? SKSpriteNode, let name = sprite.name else { return nil }
+            guard name.hasPrefix("fruit_"), !name.hasSuffix("_trigger") else { return nil }
+            return sprite
+        }
+        
+        for fruitNode in indexedFruits {
+            let triggerName = "\(fruitNode.name ?? "")_trigger"
+            let triggerNode = childNode(withName: "//\(triggerName)") as? SKSpriteNode
+            let entity = FruitDropEntity(fruitNode: fruitNode, triggerNode: triggerNode)
+            fruitDropEntities.append(entity)
+        }
+        
+        // Legacy fallback: single fruit + fruitTrigger
+        if fruitDropEntities.isEmpty,
+           let fruitNode = childNode(withName: "//fruit") as? SKSpriteNode {
+            let triggerNode = childNode(withName: "//fruitTrigger") as? SKSpriteNode
+            let entity = FruitDropEntity(fruitNode: fruitNode, triggerNode: triggerNode)
+            fruitDropEntities.append(entity)
+        }
     }
     
     private func setupCamera() {
@@ -112,20 +149,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func keyDown(with event: NSEvent) {
         // R untuk restart setelah mati
-        if isPlayerDead && event.charactersIgnoringModifiers?.lowercased() == "r" {
+        if gameState == .dead && event.charactersIgnoringModifiers?.lowercased() == "r" {
             restartScene()
             return
         }
         
-        if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
-            control.handleKeyDown(event.keyCode)
-        }
+        playerControl?.handleKeyDown(event.keyCode)
     }
     
     override func keyUp(with event: NSEvent) {
-        if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
-            control.handleKeyUp(event.keyCode)
-        }
+        playerControl?.handleKeyUp(event.keyCode)
     }
     
     override func update(_ currentTime: TimeInterval) {
@@ -133,8 +166,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let dt = currentTime - lastUpdateTime
         lastUpdateTime = currentTime
         
-        // Saat mati, hentikan kontrol supaya input tidak diproses lagi
-        if !isPlayerDead {
+        if gameState == .playing {
             checkPlayerGroundedState()
             controlSystem.update(deltaTime: dt)
         }
@@ -145,69 +177,96 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     private func checkPlayerGroundedState() {
-        guard let body = playerEntity.spriteNode.physicsBody else { return }
+        guard
+            let body = playerEntity.spriteNode.physicsBody,
+            let control = playerControl
+        else { return }
         
-        if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
-            for contactedBody in body.allContactedBodies() {
-                if contactedBody.categoryBitMask == PhysicsCategory.ground,
-                   let groundNode = contactedBody.node {
-                    if playerEntity.spriteNode.position.y > groundNode.position.y + (groundNode.frame.height / 2) * 0.8 {
-                        control.isGrounded = true
-                        break
-                    }
+        for contactedBody in body.allContactedBodies() {
+            if contactedBody.categoryBitMask == PhysicsCategory.ground,
+               let groundNode = contactedBody.node,
+               playerEntity.spriteNode.position.y > groundNode.position.y + (groundNode.frame.height / 2) * 0.8 {
+                control.isGrounded = true
+                break
+            }
+        }
+    }
+    
+    private func hasPair(_ a: UInt32, _ b: UInt32, _ x: UInt32, _ y: UInt32) -> Bool {
+        return (a == x && b == y) || (a == y && b == x)
+    }
+    
+    private func handleTreeTriggerContact(_ maskA: UInt32, _ maskB: UInt32, nodeA: SKNode?, nodeB: SKNode?) -> Bool {
+        guard hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.treeTrigger) else { return false }
+        
+        for entity in treeObstacleEntities where entity.matchesTriggerNode(nodeA) || entity.matchesTriggerNode(nodeB) {
+            entity.handlePlayerEnteredTrigger()
+            return true
+        }
+        return false
+    }
+    
+    private func handleFruitTriggerContact(_ maskA: UInt32, _ maskB: UInt32, nodeA: SKNode?, nodeB: SKNode?) -> Bool {
+        guard hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.fruitTrigger) else { return false }
+        
+        for entity in fruitDropEntities where entity.matchesTriggerNode(nodeA) || entity.matchesTriggerNode(nodeB) {
+            entity.handlePlayerEnteredTrigger()
+            return true
+        }
+        return false
+    }
+    
+    private func handlePlayerHazardContact(_ maskA: UInt32, _ maskB: UInt32, nodeA: SKNode?, nodeB: SKNode?) -> Bool {
+        if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.tree) {
+            for entity in treeObstacleEntities where entity.matchesTreeNode(nodeA) || entity.matchesTreeNode(nodeB) {
+                if entity.shouldKillPlayerOnTreeContact() {
+                    killPlayer()
+                    return true
                 }
             }
         }
+        
+        if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.fruit) {
+            for entity in fruitDropEntities where entity.matchesFruitNode(nodeA) || entity.matchesFruitNode(nodeB) {
+                if entity.shouldKillPlayerOnFruitContact() {
+                    killPlayer()
+                    return true
+                }
+            }
+        }
+        
+        return false
     }
     
+    private func handleFruitGroundContact(_ maskA: UInt32, _ maskB: UInt32, nodeA: SKNode?, nodeB: SKNode?) -> Bool {
+        guard hasPair(maskA, maskB, PhysicsCategory.fruit, PhysicsCategory.ground) else { return false }
+        
+        for entity in fruitDropEntities where entity.matchesFruitNode(nodeA) || entity.matchesFruitNode(nodeB) {
+            entity.handleFruitHitGround()
+            return true
+        }
+        return false
+    }
+
     func didBegin(_ contact: SKPhysicsContact) {
         let maskA = contact.bodyA.categoryBitMask
         let maskB = contact.bodyB.categoryBitMask
+        let nodeA = contact.bodyA.node
+        let nodeB = contact.bodyB.node
+
+        guard gameState == .playing else { return }
         
-        // Player masuk trigger tree
-        if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.treeTrigger) ||
-            (maskA == PhysicsCategory.treeTrigger && maskB == PhysicsCategory.player) {
-            treeObstacleEntity?.handlePlayerEnteredTrigger()
-            return
-        }
-        
-        // Player masuk trigger fruit
-        if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.fruitTrigger) ||
-            (maskA == PhysicsCategory.fruitTrigger && maskB == PhysicsCategory.player) {
-            fruitDropEntity?.handlePlayerEnteredTrigger()
-            return
-        }
-        
-        // Player kena tree => mati hanya saat tree masih hazard
-        if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.tree) ||
-            (maskA == PhysicsCategory.tree && maskB == PhysicsCategory.player) {
-            if treeObstacleEntity?.shouldKillPlayerOnTreeContact() == true {
-                killPlayer()
-                return
-            }
-        }
-        
-        // Player kena fruit => mati hanya saat fruit masih hazard
-        if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.fruit) ||
-            (maskA == PhysicsCategory.fruit && maskB == PhysicsCategory.player) {
-            if fruitDropEntity?.shouldKillPlayerOnFruitContact() == true {
-                killPlayer()
-                return
-            }
-        }
-        
-        // Fruit kena ground => mulai countdown hilang
-        if (maskA == PhysicsCategory.fruit && maskB == PhysicsCategory.ground) ||
-            (maskA == PhysicsCategory.ground && maskB == PhysicsCategory.fruit) {
-            fruitDropEntity?.handleFruitHitGround()
-        }
+        if handleTreeTriggerContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
+        if handleFruitTriggerContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
+        if handlePlayerHazardContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
+        _ = handleFruitGroundContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB)
     }
     
     private func killPlayer() {
-        guard !isPlayerDead else { return }
-        isPlayerDead = true
+        guard gameState == .playing else { return }
+        gameState = .dead
         
-        if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
+        if let control = playerControl {
             control.isMovingLeft = false
             control.isMovingRight = false
             control.currentJumpBuffer = 0
@@ -215,12 +274,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             control.isGrounded = false
         }
         
-        // Supaya tidak menabrak banyak hal setelah mati
         playerEntity.spriteNode.physicsBody?.velocity = .zero
         playerEntity.spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.none
         playerEntity.spriteNode.physicsBody?.contactTestBitMask = PhysicsCategory.none
         
-        // Fail animation sederhana
         let fallAction = SKAction.group([
             SKAction.rotate(byAngle: .pi * 0.5, duration: 0.2),
             SKAction.fadeAlpha(to: 0.4, duration: 0.2)

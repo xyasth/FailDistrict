@@ -27,4 +27,12 @@ final class FruitDropEntity: GKEntity {
     func shouldKillPlayerOnFruitContact() -> Bool {
         component(ofType: FruitDropComponent.self)?.shouldKillPlayerOnFruitContact() ?? false
     }
+
+    func matchesTriggerNode(_ node: SKNode?) -> Bool {
+        component(ofType: FruitDropComponent.self)?.matchesTriggerNode(node) ?? false
+    }
+
+    func matchesFruitNode(_ node: SKNode?) -> Bool {
+        component(ofType: FruitDropComponent.self)?.matchesFruitNode(node) ?? false
+    }
 }

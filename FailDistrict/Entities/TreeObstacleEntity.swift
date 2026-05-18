@@ -24,4 +24,12 @@ final class TreeObstacleEntity: GKEntity {
     func shouldKillPlayerOnTreeContact() -> Bool {
         component(ofType: TreeObstacleComponent.self)?.shouldKillPlayerOnTreeContact() ?? false
     }
+
+    func matchesTriggerNode(_ node: SKNode?) -> Bool {
+        component(ofType: TreeObstacleComponent.self)?.matchesTriggerNode(node) ?? false
+    }
+
+    func matchesTreeNode(_ node: SKNode?) -> Bool {
+        component(ofType: TreeObstacleComponent.self)?.matchesTreeNode(node) ?? false
+    }
 }

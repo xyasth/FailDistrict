@@ -44,6 +44,14 @@ final class TreeObstacleComponent: GKComponent {
         return hasTriggered && !isPassive
     }
 
+    func matchesTriggerNode(_ node: SKNode?) -> Bool {
+        return node === triggerNode
+    }
+
+    func matchesTreeNode(_ node: SKNode?) -> Bool {
+        return node === treeNode
+    }
+
     private func setupTreeHierarchyAndPhysics() {
         guard let scene, let treeNode else { return }
 

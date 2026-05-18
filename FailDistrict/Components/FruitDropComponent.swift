@@ -49,6 +49,14 @@ final class FruitDropComponent: GKComponent {
         return hasTriggered && !hasLanded
     }
 
+    func matchesTriggerNode(_ node: SKNode?) -> Bool {
+        return node === triggerNode
+    }
+
+    func matchesFruitNode(_ node: SKNode?) -> Bool {
+        return node === fruitNode
+    }
+
     private func setupFruitPhysics() {
         guard let fruitNode = fruitNode else { return }
 
@@ -73,7 +81,7 @@ final class FruitDropComponent: GKComponent {
     private func setupTriggerPhysics() {
         guard let triggerNode = triggerNode else { return }
 
-        triggerNode.alpha = 0.001
+        triggerNode.alpha = 0.4
         triggerNode.physicsBody = SKPhysicsBody(rectangleOf: triggerNode.size)
         triggerNode.physicsBody?.isDynamic = false
         triggerNode.physicsBody?.affectedByGravity = false

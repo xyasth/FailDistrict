@@ -18,8 +18,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var lastUpdateTime: TimeInterval = 0
     
-    // ECS: Tree obstacle entity
+    // ECS obstacles
     private var treeObstacleEntity: TreeObstacleEntity?
+    private var fruitDropEntity: FruitDropEntity?
     
     // Guard state supaya player mati hanya sekali
     private var isPlayerDead = false
@@ -32,6 +33,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         parseLevelFromSKS()
         setupPlayer()
         setupTreeObstacleEntity()
+        setupFruitDropEntity()
         setupCamera()
     }
     
@@ -76,6 +78,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         treeObstacleEntity = TreeObstacleEntity(
             scene: self,
             treeNode: treeNode,
+            triggerNode: triggerNode
+        )
+    }
+    
+    private func setupFruitDropEntity() {
+        guard let fruitNode = childNode(withName: "//fruit") as? SKSpriteNode else { return }
+        let triggerNode = childNode(withName: "//fruitTrigger") as? SKSpriteNode
+        
+        fruitDropEntity = FruitDropEntity(
+            fruitNode: fruitNode,
             triggerNode: triggerNode
         )
     }
@@ -152,10 +164,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let maskA = contact.bodyA.categoryBitMask
         let maskB = contact.bodyB.categoryBitMask
         
-        // Player masuk trigger tree => delegasi ke ECS component
+        // Player masuk trigger tree
         if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.treeTrigger) ||
             (maskA == PhysicsCategory.treeTrigger && maskB == PhysicsCategory.player) {
             treeObstacleEntity?.handlePlayerEnteredTrigger()
+            return
+        }
+        
+        // Player masuk trigger fruit
+        if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.fruitTrigger) ||
+            (maskA == PhysicsCategory.fruitTrigger && maskB == PhysicsCategory.player) {
+            fruitDropEntity?.handlePlayerEnteredTrigger()
             return
         }
         
@@ -164,7 +183,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             (maskA == PhysicsCategory.tree && maskB == PhysicsCategory.player) {
             if treeObstacleEntity?.shouldKillPlayerOnTreeContact() == true {
                 killPlayer()
+                return
             }
+        }
+        
+        // Player kena fruit => mati hanya saat fruit masih hazard
+        if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.fruit) ||
+            (maskA == PhysicsCategory.fruit && maskB == PhysicsCategory.player) {
+            if fruitDropEntity?.shouldKillPlayerOnFruitContact() == true {
+                killPlayer()
+                return
+            }
+        }
+        
+        // Fruit kena ground => mulai countdown hilang
+        if (maskA == PhysicsCategory.fruit && maskB == PhysicsCategory.ground) ||
+            (maskA == PhysicsCategory.ground && maskB == PhysicsCategory.fruit) {
+            fruitDropEntity?.handleFruitHitGround()
         }
     }
     

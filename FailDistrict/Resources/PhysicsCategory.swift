@@ -13,4 +13,6 @@ struct PhysicsCategory {
     static let ground: UInt32 = 0b10
     static let tree: UInt32 = 0b100
     static let treeTrigger: UInt32 = 0b1000
+    static let fruit: UInt32 = 0b1_0000
+    static let fruitTrigger: UInt32 = 0b10_0000
 }

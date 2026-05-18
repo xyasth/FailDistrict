@@ -25,8 +25,8 @@ class PlayerEntity: GKEntity {
         spriteNode.physicsBody = SKPhysicsBody(circleOfRadius: spriteNode.size.width / 2)
         spriteNode.physicsBody?.allowsRotation = false
         spriteNode.physicsBody?.categoryBitMask = PhysicsCategory.player
-        spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.ground | PhysicsCategory.tree // Bisa nabrak tanah & pohon
-        spriteNode.physicsBody?.contactTestBitMask = PhysicsCategory.ground | PhysicsCategory.treeTrigger | PhysicsCategory.tree // Melapor sentuhan penting
+        spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.ground | PhysicsCategory.tree | PhysicsCategory.fruit // Bisa nabrak tanah, pohon, buah
+        spriteNode.physicsBody?.contactTestBitMask = PhysicsCategory.ground | PhysicsCategory.treeTrigger | PhysicsCategory.tree | PhysicsCategory.fruitTrigger | PhysicsCategory.fruit // Melapor sentuhan penting
         spriteNode.physicsBody?.restitution = 0.0 // Tidak memantul
         spriteNode.physicsBody?.friction = 0.0 // Tidak ada gesekand
         

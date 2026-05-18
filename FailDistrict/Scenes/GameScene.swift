@@ -18,13 +18,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var lastUpdateTime: TimeInterval = 0
     
-    // Tree obstacle nodes from GameScene.sks
-    private var treePivotNode: SKNode?
-    private var treeNode: SKSpriteNode?
-    private var treeTriggerNode: SKSpriteNode?
-    
-    // Guard state supaya trigger hanya sekali
-    private var hasTreeTriggered = false
+    // ECS: Tree obstacle entity
+    private var treeObstacleEntity: TreeObstacleEntity?
     
     // Guard state supaya player mati hanya sekali
     private var isPlayerDead = false
@@ -36,7 +31,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         parseLevelFromSKS()
         setupPlayer()
-        setupTreeObstacle()
+        setupTreeObstacleEntity()
         setupCamera()
     }
     
@@ -47,7 +42,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         for node in self.children {
             if node.name == "ground_placeholder", let spriteNode = node as? SKSpriteNode {
-                
                 let size = spriteNode.size
                 let position = spriteNode.position
                 
@@ -75,64 +69,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         controlSystem.addComponent(foundIn: playerEntity)
     }
     
-    private func setupTreeObstacle() {
-        // Ambil node tree dan trigger yang sudah kamu pasang di GameScene.sks
-        treeNode = childNode(withName: "//tree") as? SKSpriteNode
-        treeTriggerNode = childNode(withName: "//treeTrigger") as? SKSpriteNode
+    private func setupTreeObstacleEntity() {
+        guard let treeNode = childNode(withName: "//tree") as? SKSpriteNode else { return }
+        let triggerNode = childNode(withName: "//treeTrigger") as? SKSpriteNode
         
-        guard let treeNode = treeNode else { return }
-        
-        // Buat pivot node di posisi bawah batang, lalu jadikan tree sebagai child.
-        // Rotasi nanti dilakukan di pivot, jadi titik jatuh stabil di akar pohon.
-        let originalPosition = treeNode.position
-        let originalZPosition = treeNode.zPosition
-        
-        let pivot = SKNode()
-        pivot.name = "treePivot"
-        pivot.position = originalPosition
-        addChild(pivot)
-        
-        treeNode.removeFromParent()
-        treeNode.zPosition = originalZPosition
-        // Pakai anchor tengah supaya physics body texture tetap sejajar stabil.
-        treeNode.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        // Geser sprite ke atas pivot, jadi pivot tetap di pangkal batang.
-        treeNode.position = CGPoint(x: 0, y: treeNode.size.height * 0.5)
-        pivot.addChild(treeNode)
-        treePivotNode = pivot
-        
-        // Physics body tetap pakai bentuk texture pohon
-        if let texture = treeNode.texture {
-            treeNode.physicsBody = SKPhysicsBody(texture: texture, size: treeNode.size)
-        } else {
-            treeNode.physicsBody = SKPhysicsBody(rectangleOf: treeNode.size)
-        }
-        treeNode.physicsBody?.isDynamic = false
-        treeNode.physicsBody?.affectedByGravity = false
-        treeNode.physicsBody?.allowsRotation = false
-        treeNode.physicsBody?.categoryBitMask = PhysicsCategory.tree
-        treeNode.physicsBody?.collisionBitMask = PhysicsCategory.ground | PhysicsCategory.player
-        treeNode.physicsBody?.contactTestBitMask = PhysicsCategory.player
-        treeNode.physicsBody?.friction = 0.8
-        treeNode.physicsBody?.restitution = 0.0
-        treeNode.physicsBody?.angularDamping = 0.5
-        
-        if let trigger = treeTriggerNode {
-            // Trigger tidak terlihat dan tidak ikut physics simulation
-            // trigger.alpha = 0.001
-            trigger.alpha = 0.5
-            trigger.physicsBody = SKPhysicsBody(rectangleOf: trigger.size)
-            trigger.physicsBody?.isDynamic = false
-            trigger.physicsBody?.affectedByGravity = false
-            trigger.physicsBody?.categoryBitMask = PhysicsCategory.treeTrigger
-            trigger.physicsBody?.collisionBitMask = PhysicsCategory.none
-            trigger.physicsBody?.contactTestBitMask = PhysicsCategory.player
-        }
+        treeObstacleEntity = TreeObstacleEntity(
+            scene: self,
+            treeNode: treeNode,
+            triggerNode: triggerNode
+        )
     }
     
     private func setupCamera() {
         cameraNode = SKCameraNode()
-        
         cameraNode.setScale(1.0)
         
         addChild(cameraNode)
@@ -188,12 +137,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         if let control = playerEntity.component(ofType: PlayerControlComponent.self) {
             for contactedBody in body.allContactedBodies() {
-                if contactedBody.categoryBitMask == PhysicsCategory.ground {
-                    if let groundNode = contactedBody.node {
-                        if playerEntity.spriteNode.position.y > groundNode.position.y + (groundNode.frame.height / 2) * 0.8 {
-                            control.isGrounded = true
-                            break
-                        }
+                if contactedBody.categoryBitMask == PhysicsCategory.ground,
+                   let groundNode = contactedBody.node {
+                    if playerEntity.spriteNode.position.y > groundNode.position.y + (groundNode.frame.height / 2) * 0.8 {
+                        control.isGrounded = true
+                        break
                     }
                 }
             }
@@ -204,50 +152,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let maskA = contact.bodyA.categoryBitMask
         let maskB = contact.bodyB.categoryBitMask
         
-        // Player masuk trigger pohon => pohon jatuh (sekali saja)
+        // Player masuk trigger tree => delegasi ke ECS component
         if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.treeTrigger) ||
             (maskA == PhysicsCategory.treeTrigger && maskB == PhysicsCategory.player) {
-            triggerTreeFallOnce()
+            treeObstacleEntity?.handlePlayerEnteredTrigger()
             return
         }
         
-        // Player kena pohon => mati
+        // Player kena tree => mati hanya saat tree masih hazard
         if (maskA == PhysicsCategory.player && maskB == PhysicsCategory.tree) ||
             (maskA == PhysicsCategory.tree && maskB == PhysicsCategory.player) {
-            killPlayer()
+            if treeObstacleEntity?.shouldKillPlayerOnTreeContact() == true {
+                killPlayer()
+            }
         }
     }
     
-    private func triggerTreeFallOnce() {
-        guard !hasTreeTriggered, let treePivotNode = treePivotNode else { return }
-        hasTreeTriggered = true
-        
-        // Rotasi pivot (bukan sprite) supaya pangkal pohon jadi titik putar.
-        let fallLeft = SKAction.rotate(toAngle: (.pi / 2), duration: 0.45, shortestUnitArc: true)
-        fallLeft.timingMode = .easeIn
-
-        let becomePassive = SKAction.run { [weak self] in
-            self?.makeTreePassive()
-        }
-
-        treePivotNode.run(SKAction.sequence([fallLeft, becomePassive]))
-        
-        // Hapus trigger supaya tidak pernah aktif lagi
-        treeTriggerNode?.removeFromParent()
-        treeTriggerNode = nil
-    }
-    
-    private func makeTreePassive() {
-        guard let treeBody = treeNode?.physicsBody else { return }
-
-        // Setelah tumbang, pohon jadi pasif: tidak membunuh dan tidak menghalangi player.
-        treeBody.categoryBitMask = PhysicsCategory.none
-        treeBody.collisionBitMask = PhysicsCategory.none
-        treeBody.contactTestBitMask = PhysicsCategory.none
-        treeBody.isDynamic = false
-        treeBody.affectedByGravity = false
-    }
-
     private func killPlayer() {
         guard !isPlayerDead else { return }
         isPlayerDead = true

@@ -1,3 +1,10 @@
+//
+//  ViewController.swift
+//  FailDistrict
+//
+//  Created by Prayogo kosasih. W on 08/05/26.
+//
+
 import Cocoa
 import SpriteKit
 import GameplayKit
@@ -9,18 +16,31 @@ class ViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        if let scene = GameScene(fileNamed: "GameScene") {
+        // Load 'GameScene.sks' as a GKScene. This provides gameplay related content
+        // including entities and graphs.
+        if let scene = GKScene(fileNamed: "GameScene") {
             
-            scene.scaleMode = .aspectFill
-            
-            if let view = self.skView {
-                view.presentScene(scene)
+            // Get the SKScene from the loaded GKScene
+            if let sceneNode = scene.rootNode as! GameScene? {
                 
-                view.ignoresSiblingOrder = false
-                view.showsFPS = true
-                view.showsNodeCount = true
-                view.showsPhysics = true
+                // Copy gameplay related content over to the scene
+                sceneNode.entities = scene.entities
+                sceneNode.graphs = scene.graphs
+                
+                // Set the scale mode to scale to fit the window
+                sceneNode.scaleMode = .aspectFill
+                
+                // Present the scene
+                if let view = self.skView {
+                    view.presentScene(sceneNode)
+                    
+                    view.ignoresSiblingOrder = true
+                    
+                    view.showsFPS = true
+                    view.showsNodeCount = true
+                }
             }
         }
     }
 }
+

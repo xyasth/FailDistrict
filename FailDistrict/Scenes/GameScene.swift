@@ -27,6 +27,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // ECS obstacles (multi instance)
     private var treeObstacleEntities: [TreeObstacleEntity] = []
     private var fruitDropEntities: [FruitDropEntity] = []
+    private var monitorDropEntities: [MonitorDropEntity] = []
     
     // State game sederhana
     private var gameState: GameState = .playing
@@ -40,6 +41,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         setupPlayer()
         setupTreeObstacleEntities()
         setupFruitDropEntities()
+        setupMonitorDropEntities()
         setupCamera()
         setupHoles()
     }
@@ -128,6 +130,32 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let triggerNode = childNode(withName: "//fruitTrigger") as? SKSpriteNode
             let entity = FruitDropEntity(fruitNode: fruitNode, triggerNode: triggerNode)
             fruitDropEntities.append(entity)
+        }
+    }
+
+    private func setupMonitorDropEntities() {
+        monitorDropEntities.removeAll()
+
+        // Multi naming: building_1_monitorTrigger + building_1_monitorSpawn, ...
+        let monitorTriggerNodes = children.compactMap { node -> SKSpriteNode? in
+            guard let sprite = node as? SKSpriteNode, let name = sprite.name else { return nil }
+            guard name.hasSuffix("_monitorTrigger") else { return nil }
+            return sprite
+        }
+
+        for triggerNode in monitorTriggerNodes {
+            let baseName = triggerNode.name?.replacingOccurrences(of: "_monitorTrigger", with: "") ?? ""
+            let spawnNode = childNode(withName: "//\(baseName)_monitorSpawn")
+            let entity = MonitorDropEntity(scene: self, triggerNode: triggerNode, spawnPointNode: spawnNode)
+            monitorDropEntities.append(entity)
+        }
+
+        // Legacy fallback: single monitorTrigger + monitorSpawnPoint
+        if monitorDropEntities.isEmpty,
+           let triggerNode = childNode(withName: "//monitorTrigger") as? SKSpriteNode {
+            let spawnNode = childNode(withName: "//monitorSpawnPoint")
+            let entity = MonitorDropEntity(scene: self, triggerNode: triggerNode, spawnPointNode: spawnNode)
+            monitorDropEntities.append(entity)
         }
     }
     
@@ -234,6 +262,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         return false
     }
+
+    private func handleMonitorTriggerContact(_ maskA: UInt32, _ maskB: UInt32, nodeA: SKNode?, nodeB: SKNode?) -> Bool {
+        guard hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.monitorTrigger) else { return false }
+
+        for entity in monitorDropEntities where entity.matchesTriggerNode(nodeA) || entity.matchesTriggerNode(nodeB) {
+            entity.handlePlayerEnteredTrigger()
+            return true
+        }
+        return false
+    }
     
     private func handlePlayerHazardContact(_ maskA: UInt32, _ maskB: UInt32, nodeA: SKNode?, nodeB: SKNode?) -> Bool {
         if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.tree) {
@@ -253,6 +291,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 }
             }
         }
+
+        if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.monitor) {
+            for entity in monitorDropEntities where entity.matchesMonitorNode(nodeA) || entity.matchesMonitorNode(nodeB) {
+                if entity.shouldKillPlayerOnMonitorContact() {
+                    killPlayer()
+                    return true
+                }
+            }
+        }
         
         return false
     }
@@ -266,7 +313,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         return false
     }
-    
+
+    private func handleMonitorGroundContact(_ maskA: UInt32, _ maskB: UInt32, nodeA: SKNode?, nodeB: SKNode?) -> Bool {
+        guard hasPair(maskA, maskB, PhysicsCategory.monitor, PhysicsCategory.ground) else { return false }
+
+        for entity in monitorDropEntities where entity.matchesMonitorNode(nodeA) || entity.matchesMonitorNode(nodeB) {
+            entity.handleMonitorHitGround()
+            return true
+        }
+        return false
+    }
+
     func didBegin(_ contact: SKPhysicsContact) {
         let maskA = contact.bodyA.categoryBitMask
         let maskB = contact.bodyB.categoryBitMask
@@ -286,8 +343,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         if handleTreeTriggerContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
         if handleFruitTriggerContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
+        if handleMonitorTriggerContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
         if handlePlayerHazardContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
-        _ = handleFruitGroundContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB)
+        if handleFruitGroundContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
+        _ = handleMonitorGroundContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB)
     }
     
     func didEnd(_ contact: SKPhysicsContact) {

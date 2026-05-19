@@ -13,7 +13,7 @@ class PlayerEntity: GKEntity {
     
     init(position: CGPoint) {
         // Pembuatan Visual Player
-        spriteNode = SKSpriteNode(imageNamed: "player_idle")
+        spriteNode = SKSpriteNode(imageNamed: "PlayerIdle")
         spriteNode.size = CGSize(width: 100, height: 100)
         
         spriteNode.zPosition = 10
@@ -23,6 +23,13 @@ class PlayerEntity: GKEntity {
         
         // Setingan Physics
         spriteNode.physicsBody = SKPhysicsBody(circleOfRadius: spriteNode.size.width / 2)
+//        if let texture = spriteNode.texture {
+//            spriteNode.physicsBody = SKPhysicsBody(texture: texture, size: spriteNode.size)
+//        } else {
+//            let texture = SKTexture(imageNamed: "PlayerIdle")
+//            spriteNode.physicsBody = SKPhysicsBody(texture: texture, size: spriteNode.size)
+//        }
+//        
         spriteNode.physicsBody?.allowsRotation = false
         spriteNode.physicsBody?.categoryBitMask = PhysicsCategory.player
         spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.ground | PhysicsCategory.tree | PhysicsCategory.fruit // Bisa nabrak tanah, pohon, buah

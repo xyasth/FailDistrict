@@ -10,6 +10,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var playerEntity: PlayerEntity!
     private var playerControl: PlayerControlComponent?
     var groundEntities: [GroundEntity] = []
+    var holeEntities: [HoleEntity] = []
     
     var cameraNode: SKCameraNode!
     var cameraController: CameraController!
@@ -40,6 +41,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         setupTreeObstacleEntities()
         setupFruitDropEntities()
         setupCamera()
+        setupHoles()
     }
     
     private func parseLevelFromSKS() {
@@ -147,6 +149,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         cameraNode.position.y = self.size.height / 2
     }
     
+    private func setupHoles() {
+        holeEntities.removeAll()
+        
+        for node in children {
+            guard let sprite = node as? SKSpriteNode, let name = sprite.name else { continue }
+            
+            if name == "manhole" || name == "movehole" || name == "chasehole" {
+                let entity = HoleEntity(node: sprite, scene: self, type: name)
+                holeEntities.append(entity)
+            }
+        }
+    }
+    
     override func keyDown(with event: NSEvent) {
         // R untuk restart setelah mati
         if gameState == .dead && event.charactersIgnoringModifiers?.lowercased() == "r" {
@@ -169,6 +184,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if gameState == .playing {
             checkPlayerGroundedState()
             controlSystem.update(deltaTime: dt)
+            
+            for entity in holeEntities {
+                entity.update(deltaTime: dt)
+            }
         }
     }
     
@@ -247,19 +266,60 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         return false
     }
-
+    
     func didBegin(_ contact: SKPhysicsContact) {
         let maskA = contact.bodyA.categoryBitMask
         let maskB = contact.bodyB.categoryBitMask
         let nodeA = contact.bodyA.node
         let nodeB = contact.bodyB.node
-
+        
         guard gameState == .playing else { return }
+        
+        if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.manhole) {
+            let holeNode = maskA == PhysicsCategory.manhole ? nodeA : nodeB
+            let entity = holeEntities.first { $0.spriteNode == holeNode }
+            if let comp = entity?.holeComponent {
+                comp.didBeginContact(with: playerEntity, contact: contact)
+            }
+            return
+        }
         
         if handleTreeTriggerContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
         if handleFruitTriggerContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
         if handlePlayerHazardContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB) { return }
         _ = handleFruitGroundContact(maskA, maskB, nodeA: nodeA, nodeB: nodeB)
+    }
+    
+    func didEnd(_ contact: SKPhysicsContact) {
+        let maskA = contact.bodyA.categoryBitMask
+        let maskB = contact.bodyB.categoryBitMask
+        let nodeA = contact.bodyA.node
+        let nodeB = contact.bodyB.node
+        
+        if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.manhole) {
+            let holeNode = maskA == PhysicsCategory.manhole ? nodeA : nodeB
+            let entity = holeEntities.first { $0.spriteNode == holeNode }
+            if let comp = entity?.holeComponent {
+                comp.didEndContact(with: playerEntity, contact: contact)
+            }
+        }
+    }
+    
+    func triggerHoleDeath() {
+        guard gameState == .playing else { return }
+        gameState = .dead
+        
+        if let control = playerControl {
+            control.isMovingLeft = false
+            control.isMovingRight = false
+            control.isGrounded = false
+        }
+        
+        // Stop their physics entirely (no rotation since they fell)
+        playerEntity.spriteNode.physicsBody?.velocity = .zero
+        playerEntity.spriteNode.physicsBody?.collisionBitMask = PhysicsCategory.none
+        
+        showRestartPrompt()
     }
     
     private func killPlayer() {

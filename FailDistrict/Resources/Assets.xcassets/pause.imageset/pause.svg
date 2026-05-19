@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 63.67 65.8">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fef5a5;
+      }
+
+      .cls-2 {
+        filter: url(#drop-shadow-17);
+      }
+
+      .cls-3 {
+        fill-rule: evenodd;
+      }
+
+      .cls-3, .cls-4 {
+        fill: #bfb931;
+      }
+    </style>
+    <filter id="drop-shadow-17" x="6.29" y="6.56" width="54.48" height="54.48" filterUnits="userSpaceOnUse">
+      <feOffset dx="1" dy="2"/>
+      <feGaussianBlur result="blur" stdDeviation="1"/>
+      <feFlood flood-color="#000" flood-opacity=".21"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g class="cls-2">
+    <path class="cls-3" d="M32.49,56.01c-13.3,0-24.12-10.82-24.12-24.12S19.19,7.77,32.49,7.77s24.12,10.82,24.12,24.12-10.82,24.12-24.12,24.12Z"/>
+    <rect class="cls-1" x="14.37" y="13.77" width="36.24" height="36.24" rx="18.12" ry="18.12"/>
+    <g>
+      <rect class="cls-4" x="27.59" y="23.45" width="3.2" height="16.87"/>
+      <rect class="cls-4" x="34.19" y="23.45" width="3.2" height="16.87"/>
+    </g>
+  </g>
+</svg>

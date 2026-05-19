@@ -30,6 +30,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // State game sederhana
     private var gameState: GameState = .playing
     
+    // Untuk pause game
+    private var pauseMenuContainer: SKNode!
+    
     override func didMove(to view: SKView) {
         physicsWorld.contactDelegate = self
         physicsWorld.gravity = CGVector(dx: 0, dy: -15.0)
@@ -40,6 +43,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         setupTreeObstacleEntities()
         setupFruitDropEntities()
         setupCamera()
+        setupPauseButton()
+        setupPauseMenuAssetBased()
     }
     
     private func parseLevelFromSKS() {
@@ -154,7 +159,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         
-        playerControl?.handleKeyDown(event.keyCode)
+        if event.keyCode == 53 {
+            toggleGamePause()
+            return
+        }
+        
+        if !self.isPaused {
+            playerControl?.handleKeyDown(event.keyCode)
+        }
     }
     
     override func keyUp(with event: NSEvent) {
@@ -308,4 +320,163 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             view.presentScene(scene, transition: SKTransition.fade(withDuration: 0.25))
         }
     }
+    
+    private func setupPauseMenuAssetBased() {
+            guard let camera = self.camera else { return }
+            
+            // 1. Membuat Wadah Utama
+            pauseMenuContainer = SKNode()
+            pauseMenuContainer.zPosition = 200 // Sangat tinggi agar di depan semuanya
+            pauseMenuContainer.isHidden = true // Sembunyikan awalnya
+            
+            // 2. Layar Peredup (Overlay) - Tetap pakai kode karena sangat mudah
+            // Membuat layar hitam transparan memenuhi layar
+            let dimmer = SKSpriteNode(color: NSColor.black.withAlphaComponent(0.6), size: self.size)
+            // Koordinat 0,0 di kamera adalah tepat di tengah layar MacBook
+            dimmer.position = CGPoint.zero
+            pauseMenuContainer.addChild(dimmer)
+            
+            // 3. Panel Latar Belakang Utama
+            // Asumsikan nama gambar panel latar belakangmu di Assets adalah: "pause_menu_panel"
+            let panel = SKSpriteNode(imageNamed: "frame_button")
+            panel.position = CGPoint.zero // Letakkan tepat di tengah (senter)
+            pauseMenuContainer.addChild(panel)
+            
+            // --- Memasukkan Tombol-tombol di Atas Panel ---
+            // Posisinya dihitung relatif terhadap tengah panel (0,0)
+
+            // Jarak vertikal antar tombol
+            let verticalSpacing: CGFloat = 60
+            // Y-posisi awal tombol paling atas (di atas titik tengah panel)
+            let buttonYStart: CGFloat = 45
+            
+            // A. Tombol Besar: RESUME
+            // Asumsikan gambar lengkap tombol dengan teksnya bernama: "button_resume_asset"
+            let resumeBtn = SKSpriteNode(imageNamed: "resume")
+            resumeBtn.name = "resume_button_asset" // Nama unik sensor klik
+            resumeBtn.position = CGPoint(x: 0, y: buttonYStart)
+            pauseMenuContainer.addChild(resumeBtn)
+            
+            // B. Tombol Besar: RESTART
+            // Asumsikan gambar bernama: "button_restart_asset"
+            let restartBtn = SKSpriteNode(imageNamed: "restart")
+            restartBtn.name = "restart_button_asset" // Nama unik sensor klik
+            restartBtn.position = CGPoint(x: 0, y: buttonYStart - verticalSpacing)
+            pauseMenuContainer.addChild(restartBtn)
+            
+            // C. Tombol Kecil: BACK TO HOME (di bawah)
+            // Asumsikan gambar bernama: "button_back_home_asset"
+            let backHomeBtn = SKSpriteNode(imageNamed: "back_to_home")
+            backHomeBtn.name = "back_home_button_asset" // Nama unik sensor klik
+            // Letakkan lebih ke bawah
+            backHomeBtn.position = CGPoint(x: 0, y: buttonYStart - 2 * verticalSpacing - 20)
+            pauseMenuContainer.addChild(backHomeBtn)
+            
+            
+            // --- Ikon-ikon di Atas Tombol Besar ---
+            
+            // Y-posisi ikon-ikon di atas panel
+            let iconY: CGFloat = 115
+            // Jarak antar ikon horizontal
+            let iconSpacing: CGFloat = 60
+
+            // D. Ikon Suara (Speaker)
+            // Asumsikan gambar ikon suara sedang menyala: "icon_sound_on"
+            let soundIcon = SKSpriteNode(imageNamed: "sfx")
+            soundIcon.name = "sound_toggle_asset" // Nama unik sensor klik
+            // Letakkan agak ke kiri
+            soundIcon.position = CGPoint(x: -iconSpacing / 2, y: iconY)
+            pauseMenuContainer.addChild(soundIcon)
+            
+            // E. Ikon Musik (Notasi)
+            // Asumsikan gambar ikon musik menyala: "icon_music_on"
+            let musicIcon = SKSpriteNode(imageNamed: "music")
+            musicIcon.name = "music_toggle_asset" // Nama unik sensor klik
+            // Letakkan agak ke kanan
+            musicIcon.position = CGPoint(x: iconSpacing / 2, y: iconY)
+            pauseMenuContainer.addChild(musicIcon)
+            
+            
+            // 4. Tempelkan seluruh wadah UI ini ke Kamera
+            camera.addChild(pauseMenuContainer)
+        }
+    
+    private func setupPauseButton() {
+            guard let camera = self.camera else { return }
+            
+            // 1. Panggil gambar tombol kuning bundarmu.
+            // GANTI "button_pause_yellow" dengan nama asli gambar tombolmu di Assets
+            let pauseButton = SKSpriteNode(imageNamed: "pause")
+            
+            // Pastikan nama ini SAMA dengan yang ada di deteksi klik mouseDown
+            pauseButton.name = "pause_button"
+            pauseButton.zPosition = 100 // Harus lebih rendah dari wadah menu pause (200)
+        
+            // Jika ukuran gambar aslinya terlalu besar, buka komentar baris di bawah ini
+            // dan sesuaikan angkanya agar pas di layar:
+            // pauseButton.size = CGSize(width: 60, height: 60)
+            
+            // 2. Hitung posisi Pojok Kanan Atas
+            let padding: CGFloat = 50 // Jarak dari pinggir layar
+            let xPos = (self.size.width / 2) - padding
+            let yPos = (self.size.height / 2) - padding
+            pauseButton.position = CGPoint(x: xPos, y: yPos)
+            
+            // 3. Masukkan ke dalam kamera
+            camera.addChild(pauseButton)
+        }
+    
+    override func mouseDown(with event: NSEvent) {
+            let location = event.location(in: self)
+            let touchedNode = atPoint(location)
+            
+            // A. Cek apakah tombol pause kuning di pojok diklik
+            if touchedNode.name == "pause_button" {
+                toggleGamePause()
+                return // Stop di sini agar kode lain tidak ikut tereksekusi
+            }
+            
+            // B. Cek tombol-tombol Menu Pause (HANYA saat game sedang pause)
+            if self.isPaused, let nodeName = touchedNode.name {
+                
+                switch nodeName {
+                case "resume_button_asset":
+                    print("▶️ Melanjutkan Game")
+                    toggleGamePause()
+                    
+                case "restart_button_asset":
+                    print("🔄 Restart Game")
+                    toggleGamePause() // Cairkan dulu gamenya
+                    restartScene()    // Panggil fungsi restart bawaanmu
+                    
+                case "back_home_button_asset":
+                    print("🏠 Kembali ke Home")
+                    toggleGamePause()
+                    if let mainMenu = MainMenuScene(fileNamed: "MainMenuScene") {
+                        mainMenu.scaleMode = self.scaleMode
+                        self.view?.presentScene(mainMenu, transition: .crossFade(withDuration: 1.0))
+                    }
+                    
+                case "sound_toggle_asset":
+                    print("🔈 On/Off Suara")
+                    
+                case "music_toggle_asset":
+                    print("🎵 On/Off Musik")
+                    
+                default:
+                    break
+                }
+                return
+            }
+            
+            // (Kalau kamu punya kode klik untuk hal lain seperti menembak, taruh di bawah sini)
+        }
+        
+        private func toggleGamePause() {
+            // Balikkan status pause bawaan mesin game
+            self.isPaused = !self.isPaused
+            
+            // Tampilkan wadah menu jika game berhenti, sembunyikan jika game jalan
+            pauseMenuContainer.isHidden = !self.isPaused
+        }
 }

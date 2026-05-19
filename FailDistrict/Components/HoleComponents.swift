@@ -139,7 +139,7 @@ class ChaseHoleComponent: HoleComponent {
         let distanceToOriginal = abs(player.position.x - originalX)
         if distanceToOriginal <= aggroRadius {
             let direction: CGFloat = player.position.x > node.position.x ? 1.0 : -1.0
-            let step = 8 * CGFloat(seconds) * direction
+            let step = 180 * CGFloat(seconds) * direction
             let newX = node.position.x + step
             
             if abs(newX - originalX) <= aggroRadius {

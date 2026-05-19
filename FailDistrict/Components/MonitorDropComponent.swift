@@ -6,6 +6,7 @@ final class MonitorDropComponent: GKComponent {
     private weak var triggerNode: SKSpriteNode?
     private weak var spawnPointNode: SKNode?
     private weak var monitorNode: SKSpriteNode?
+    private let monitorSize = CGSize(width: 70, height: 55)
 
     private var hasTriggered = false
     private var hasLanded = false
@@ -17,6 +18,7 @@ final class MonitorDropComponent: GKComponent {
         super.init()
 
         setupTriggerPhysics()
+        setupMonitorTemplate()
     }
 
     required init?(coder: NSCoder) {
@@ -27,7 +29,7 @@ final class MonitorDropComponent: GKComponent {
         guard !hasTriggered else { return }
         hasTriggered = true
 
-        spawnAndThrowMonitor()
+        activateAndThrowMonitor()
         triggerNode?.removeFromParent()
         triggerNode = nil
     }
@@ -39,8 +41,9 @@ final class MonitorDropComponent: GKComponent {
         // Monitor sudah tidak berbahaya setelah mendarat.
         monitorNode.physicsBody?.contactTestBitMask = PhysicsCategory.none
         monitorNode.physicsBody?.collisionBitMask = PhysicsCategory.ground
+        monitorNode.physicsBody?.angularVelocity = 0
 
-        let wait = SKAction.wait(forDuration: 3.0)
+        let wait = SKAction.wait(forDuration: 2.0)
         let remove = SKAction.removeFromParent()
         monitorNode.run(.sequence([wait, remove]))
     }
@@ -69,15 +72,15 @@ final class MonitorDropComponent: GKComponent {
         triggerNode.physicsBody?.contactTestBitMask = PhysicsCategory.player
     }
 
-    private func spawnAndThrowMonitor() {
+    private func setupMonitorTemplate() {
         guard let scene else { return }
-
         let spawnPosition = spawnPointNode?.position ?? CGPoint(x: 0, y: 0)
         let monitor = SKSpriteNode(imageNamed: "monitor")
         monitor.name = "monitor_runtime"
         monitor.position = spawnPosition
         monitor.zPosition = 12
-        monitor.size = CGSize(width: 70, height: 55)
+        monitor.size = monitorSize
+        monitor.isHidden = true
 
         if let texture = monitor.texture {
             monitor.physicsBody = SKPhysicsBody(texture: texture, size: monitor.size)
@@ -85,8 +88,9 @@ final class MonitorDropComponent: GKComponent {
             monitor.physicsBody = SKPhysicsBody(rectangleOf: monitor.size)
         }
 
-        monitor.physicsBody?.isDynamic = true
-        monitor.physicsBody?.affectedByGravity = true
+        //monitor.physicsBody?.mass = 0.2
+        monitor.physicsBody?.isDynamic = false
+        monitor.physicsBody?.affectedByGravity = false
         monitor.physicsBody?.allowsRotation = true
         monitor.physicsBody?.categoryBitMask = PhysicsCategory.monitor
         monitor.physicsBody?.collisionBitMask = PhysicsCategory.ground | PhysicsCategory.player
@@ -98,9 +102,19 @@ final class MonitorDropComponent: GKComponent {
 
         scene.addChild(monitor)
         monitorNode = monitor
+    }
+
+    private func activateAndThrowMonitor() {
+        guard let monitor = monitorNode else { return }
+        monitor.isHidden = false
+        monitor.physicsBody?.isDynamic = true
+        monitor.physicsBody?.affectedByGravity = true
+        monitor.physicsBody?.velocity = .zero
+        monitor.physicsBody?.angularVelocity = 0
 
         // dx dorong monitor ke depan. dy dorong naik sedikit.
         // Gravity lalu tarik ke bawah -> lintasan parabola.
-        monitor.physicsBody?.applyImpulse(CGVector(dx: 12.0, dy: 9.0))
+        monitor.physicsBody?.applyImpulse(CGVector(dx: -18.0, dy: 12.0))
+        monitor.physicsBody?.applyAngularImpulse(0.0035)
     }
 }

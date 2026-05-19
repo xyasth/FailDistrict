@@ -17,4 +17,5 @@ struct PhysicsCategory {
     static let fruitTrigger: UInt32 = 0b10_0000
     static let monitor: UInt32 = 0b100_0000
     static let monitorTrigger: UInt32 = 0b1000_0000
+    static let manhole: UInt32 = 0b100_0000
 }

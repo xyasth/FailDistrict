@@ -9,7 +9,14 @@ import GameplayKit
 
 class HoleEntity: GKEntity {
     let spriteNode: SKSpriteNode
-    
+
+    // Add this computed property
+    var holeComponent: HoleComponent? {
+        if let c = component(ofType: ChaseHoleComponent.self) { return c }
+        if let c = component(ofType: MovingHoleComponent.self) { return c }
+        return component(ofType: HoleComponent.self)
+    }
+
     init(node: SKSpriteNode, scene: GameScene, type: String) {
         self.spriteNode = node
         super.init()
@@ -32,8 +39,6 @@ class HoleEntity: GKEntity {
             addComponent(ChaseHoleComponent(node: spriteNode, scene: scene))
         }
     }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+
+    required init?(coder: NSCoder) { fatalError() }
 }

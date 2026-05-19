@@ -22,13 +22,13 @@ class PlayerEntity: GKEntity {
         spriteNode.position = position
         
         // Setingan Physics
-        spriteNode.physicsBody = SKPhysicsBody(circleOfRadius: spriteNode.size.width / 2)
-//        if let texture = spriteNode.texture {
-//            spriteNode.physicsBody = SKPhysicsBody(texture: texture, size: spriteNode.size)
-//        } else {
-//            let texture = SKTexture(imageNamed: "PlayerIdle")
-//            spriteNode.physicsBody = SKPhysicsBody(texture: texture, size: spriteNode.size)
-//        }
+//        spriteNode.physicsBody = SKPhysicsBody(circleOfRadius: spriteNode.size.width / 2)
+        if let texture = spriteNode.texture {
+            spriteNode.physicsBody = SKPhysicsBody(texture: texture, size: spriteNode.size)
+        } else {
+            let texture = SKTexture(imageNamed: "PlayerIdle")
+            spriteNode.physicsBody = SKPhysicsBody(texture: texture, size: spriteNode.size)
+        }
 //        
         spriteNode.physicsBody?.allowsRotation = false
         spriteNode.physicsBody?.categoryBitMask = PhysicsCategory.player

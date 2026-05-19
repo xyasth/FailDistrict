@@ -13,7 +13,6 @@ class HoleComponent: GKComponent, Contactable {
     let node: SKSpriteNode
     weak var scene: GameScene?
     var isTriggered = false
-    weak var playerInZone: SKSpriteNode?
     
     init(node: SKSpriteNode, scene: GameScene) {
         self.node = node
@@ -23,32 +22,37 @@ class HoleComponent: GKComponent, Contactable {
     
     required init?(coder: NSCoder) { fatalError() }
     
-    func didBeginContact(with other: GKEntity?, contact: SKPhysicsContact) {
-        guard !isTriggered, let playerEntity = other as? PlayerEntity else { return }
-        playerInZone = playerEntity.spriteNode
-    }
-    
-    func didEndContact(with other: GKEntity?, contact: SKPhysicsContact) {
-        if other is PlayerEntity { playerInZone = nil }
-    }
+    func didBeginContact(with other: GKEntity?, contact: SKPhysicsContact) {}
+    func didEndContact(with other: GKEntity?, contact: SKPhysicsContact) {}
     
     override func update(deltaTime seconds: TimeInterval) {
-        guard !isTriggered, let player = playerInZone else { return }
+        guard !isTriggered else { return }
+        guard let player = scene?.playerEntity?.spriteNode else { return }
         
-        let holeLeftEdge = node.position.x - (node.size.width / 2)
-        let holeRightEdge = node.position.x + (node.size.width / 2)
-        let sidecollider: CGFloat = 15.0
+        // Horizontal check
+        let safeMargin = min(45.0, node.size.width * 0.2)
+        let holeLeftEdge  = node.position.x - (node.size.width  / 2) + safeMargin
+        let holeRightEdge = node.position.x + (node.size.width  / 2) - safeMargin
         
-        // MARK: BUGGY ASS LOGIC
-        if player.position.x > (holeLeftEdge + sidecollider) &&
-            player.position.x < (holeRightEdge - sidecollider) {
-            triggerFall(for: player)
-        }
+        guard player.position.x > holeLeftEdge,
+              player.position.x < holeRightEdge else { return }
+        
+        // Use the player's bottom edge, not their center
+        let playerBottom = player.position.y - (player.size.height / 2)
+        let holeTop = node.position.y + (node.size.height / 2)
+        
+        // Player feet must be at or below the hole surface
+        guard playerBottom <= holeTop + 4 else { return }
+        
+        // If the player is moving upward, they jumped over — let them pass
+        let dy = player.physicsBody?.velocity.dy ?? 0
+        guard dy <= 0 else { return }
+        
+        triggerFall(for: player)
     }
     
     fileprivate func triggerFall(for playerNode: SKSpriteNode) {
         isTriggered = true
-        playerInZone = nil
         
         // Remove ground collision and pull down
         playerNode.physicsBody?.collisionBitMask &= ~PhysicsCategory.ground
@@ -135,7 +139,7 @@ class ChaseHoleComponent: HoleComponent {
         let distanceToOriginal = abs(player.position.x - originalX)
         if distanceToOriginal <= aggroRadius {
             let direction: CGFloat = player.position.x > node.position.x ? 1.0 : -1.0
-            let step = 180 * CGFloat(seconds) * direction
+            let step = 8 * CGFloat(seconds) * direction
             let newX = node.position.x + step
             
             if abs(newX - originalX) <= aggroRadius {
@@ -145,15 +149,15 @@ class ChaseHoleComponent: HoleComponent {
         }
         /*
          <<<Func to make the hole go back to original position>>>
-        else {
-            let distanceToHome = originalX - node.position.x
-            if abs(distanceToHome) > 1.0 {
-                let direction: CGFloat = distanceToHome > 0 ? 1.0 : -1.0
-                let step = 80.0 * CGFloat(seconds) * direction
-                node.position.x += step
-                frontVisualNode?.position.x += step
-            }
-        }
+         else {
+         let distanceToHome = originalX - node.position.x
+         if abs(distanceToHome) > 1.0 {
+         let direction: CGFloat = distanceToHome > 0 ? 1.0 : -1.0
+         let step = 80.0 * CGFloat(seconds) * direction
+         node.position.x += step
+         frontVisualNode?.position.x += step
+         }
+         }
          */
     }
 }

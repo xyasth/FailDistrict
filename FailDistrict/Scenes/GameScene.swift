@@ -155,7 +155,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         for node in children {
             guard let sprite = node as? SKSpriteNode, let name = sprite.name else { continue }
             
-            if name == "traphole" || name == "movehole" || name == "chasehole" {
+            if name == "manhole" || name == "movehole" || name == "chasehole" {
                 let entity = HoleEntity(node: sprite, scene: self, type: name)
                 holeEntities.append(entity)
             }
@@ -277,10 +277,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.manhole) {
             let holeNode = maskA == PhysicsCategory.manhole ? nodeA : nodeB
-            // Find the Entity, then extract its HoleComponent
             let entity = holeEntities.first { $0.spriteNode == holeNode }
-            if let comp = entity?.component(ofType: HoleComponent.self) {
-                comp.didBeginContact(with: playerEntity, contact: contact)            }
+            if let comp = entity?.holeComponent {
+                comp.didBeginContact(with: playerEntity, contact: contact)
+            }
             return
         }
         
@@ -299,7 +299,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if hasPair(maskA, maskB, PhysicsCategory.player, PhysicsCategory.manhole) {
             let holeNode = maskA == PhysicsCategory.manhole ? nodeA : nodeB
             let entity = holeEntities.first { $0.spriteNode == holeNode }
-            if let comp = entity?.component(ofType: HoleComponent.self) {
+            if let comp = entity?.holeComponent {
                 comp.didEndContact(with: playerEntity, contact: contact)
             }
         }

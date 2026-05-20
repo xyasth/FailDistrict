@@ -560,16 +560,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 
                 switch nodeName {
                 case "resume_button_asset":
-                    print("▶️ Melanjutkan Game")
                     toggleGamePause()
                     
                 case "restart_button_asset":
-                    print("🔄 Restart Game")
                     toggleGamePause() // Cairkan dulu gamenya
                     restartScene()    // Panggil fungsi restart bawaanmu
                     
                 case "back_home_button_asset":
-                    print("🏠 Kembali ke Home")
                     toggleGamePause()
                     if let mainMenu = MainMenuScene(fileNamed: "MainMenuScene") {
                         mainMenu.scaleMode = self.scaleMode
@@ -577,10 +574,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     }
                     
                 case "sound_toggle_asset":
-                    print("🔈 On/Off Suara")
+                    print("On/Off Suara")
                     
                 case "music_toggle_asset":
-                    print("🎵 On/Off Musik")
+                    print("On/Off Musik")
                     
                 default:
                     break

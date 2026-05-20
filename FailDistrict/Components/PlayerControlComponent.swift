@@ -21,8 +21,22 @@ class PlayerControlComponent: GKComponent {
     
     var isGrounded = false
     
+    // NEW: Variabel Animasi
+    var walkFrames: [SKTexture] = []
+    var idleFrame: SKTexture!
+    var isAnimating = false
+    
     init(node: SKSpriteNode) {
         self.node = node
+        
+        // Setup Tekstur Animasi
+        // Pastikan nama gambar sesuai dengan yang ada di Assets.xcassets
+        self.idleFrame = SKTexture(imageNamed: "PlayerIdle")
+        self.walkFrames = [
+            SKTexture(imageNamed: "PlayerWalk1"),
+            SKTexture(imageNamed: "PlayerWalk2")
+        ]
+        
         super.init()
     }
     
@@ -64,17 +78,34 @@ class PlayerControlComponent: GKComponent {
         
         currentJumpBuffer -= seconds
         
-        //        var targetVelocityX: CGFloat = 0
-        //        if isMovingLeft { targetVelocityX = -moveSpeed }
-        //        if isMovingRight { targetVelocityX = moveSpeed }
-        
         var directionModifier: CGFloat = 0
-        if isMovingLeft { directionModifier -= 1 }
-        if isMovingRight { directionModifier += 1 }
+        if isMovingLeft {
+            directionModifier -= 1
+            // Hadap Kiri
+            node.xScale = -abs(node.xScale)
+        }
+        if isMovingRight {
+            directionModifier += 1
+            // Hadap Kanan
+            node.xScale = abs(node.xScale)
+        }
         
         let targetVelocityX = moveSpeed * directionModifier
         
         node.physicsBody?.velocity.dx = targetVelocityX
+        
+        // Logika Animasi
+        // Hanya putar animasi jalan jika ada tombol yang ditekan (direction != 0) DAN sedang menginjak tanah
+        if directionModifier != 0 && isGrounded {
+            if !isAnimating {
+                startWalkingAnimation()
+            }
+        } else {
+            // Jika diam atau sedang melompat, hentikan animasi jalan
+            if isAnimating {
+                stopWalkingAnimation()
+            }
+        }
         
         // Eksekusi Jump
         if currentJumpBuffer > 0 && currentCoyoteTime > 0 {
@@ -88,5 +119,20 @@ class PlayerControlComponent: GKComponent {
         node.physicsBody?.velocity.dy = jumpVelocity
         currentJumpBuffer = 0
         currentCoyoteTime = 0
+    }
+    
+    // NEW: Helper Functions Animasi
+    private func startWalkingAnimation() {
+        isAnimating = true
+        // Kecepatan animasi (0.15 detik per frame)
+        let walkAction = SKAction.animate(with: walkFrames, timePerFrame: 0.15)
+        let repeatWalk = SKAction.repeatForever(walkAction)
+        node.run(repeatWalk, withKey: "walkAnimation")
+    }
+
+    private func stopWalkingAnimation() {
+        isAnimating = false
+        node.removeAction(forKey: "walkAnimation")
+        node.texture = idleFrame // Kembalikan ke posisi berdiri biasa
     }
 }

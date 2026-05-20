@@ -346,9 +346,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Posisinya dihitung relatif terhadap tengah panel (0,0)
 
             // Jarak vertikal antar tombol
-            let verticalSpacing: CGFloat = 60
+            let verticalSpacing: CGFloat = 95
             // Y-posisi awal tombol paling atas (di atas titik tengah panel)
-            let buttonYStart: CGFloat = 45
+            let buttonYStart: CGFloat = 50
             
             // A. Tombol Besar: RESUME
             // Asumsikan gambar lengkap tombol dengan teksnya bernama: "button_resume_asset"
@@ -369,14 +369,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let backHomeBtn = SKSpriteNode(imageNamed: "back_to_home")
             backHomeBtn.name = "back_home_button_asset" // Nama unik sensor klik
             // Letakkan lebih ke bawah
-            backHomeBtn.position = CGPoint(x: 0, y: buttonYStart - 2 * verticalSpacing - 20)
+            backHomeBtn.position = CGPoint(x: 0, y: buttonYStart - 1.65 * verticalSpacing)
             pauseMenuContainer.addChild(backHomeBtn)
             
             
             // --- Ikon-ikon di Atas Tombol Besar ---
             
             // Y-posisi ikon-ikon di atas panel
-            let iconY: CGFloat = 115
+            let iconY: CGFloat = 118
             // Jarak antar ikon horizontal
             let iconSpacing: CGFloat = 60
 
@@ -385,7 +385,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let soundIcon = SKSpriteNode(imageNamed: "sfx")
             soundIcon.name = "sound_toggle_asset" // Nama unik sensor klik
             // Letakkan agak ke kiri
-            soundIcon.position = CGPoint(x: -iconSpacing / 2, y: iconY)
+        soundIcon.position = CGPoint(x: -iconSpacing / 1.7, y: iconY)
             pauseMenuContainer.addChild(soundIcon)
             
             // E. Ikon Musik (Notasi)
@@ -393,7 +393,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let musicIcon = SKSpriteNode(imageNamed: "music")
             musicIcon.name = "music_toggle_asset" // Nama unik sensor klik
             // Letakkan agak ke kanan
-            musicIcon.position = CGPoint(x: iconSpacing / 2, y: iconY)
+        musicIcon.position = CGPoint(x: iconSpacing / 1.7, y: iconY)
             pauseMenuContainer.addChild(musicIcon)
             
             
